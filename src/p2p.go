@@ -1,3 +1,10 @@
+/*
+ * @Author: gitsrc
+ * @Date: 2022-05-24 14:01:14
+ * @LastEditors: gitsrc
+ * @LastEditTime: 2022-05-24 15:34:25
+ * @FilePath: /peerchat/src/p2p.go
+ */
 package src
 
 import (
@@ -5,6 +12,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -60,13 +68,14 @@ func NewP2P() *P2P {
 	// Setup a background context
 	ctx := context.Background()
 
-	// Setup a P2P Host Node
+	// Setup a P2P Host Node :创建 p2p host
 	nodehost, kaddht := setupHost(ctx)
 	// Debug log
 	logrus.Debugln("Created the P2P Host and the Kademlia DHT.")
 
-	// Bootstrap the Kad DHT
+	// Bootstrap the Kad DHT :根据DHT启动节点
 	bootstrapDHT(ctx, nodehost, kaddht)
+
 	// Debug log
 	logrus.Debugln("Bootstrapped the Kademlia DHT and Connected to Bootstrap Peers")
 
@@ -160,14 +169,18 @@ func (p2p *P2P) AnnounceConnect() {
 // libp2p host object for the given context. The created host is returned
 func setupHost(ctx context.Context) (host.Host, *dht.IpfsDHT) {
 	// Set up the host identity options
-	prvkey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
-	identity := libp2p.Identity(prvkey)
+	prvkey, pubkey, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
+
 	// Handle any potential error
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error": err.Error(),
 		}).Fatalln("Failed to Generate P2P Identity Configuration!")
 	}
+
+	_ = pubkey
+
+	identity := libp2p.Identity(prvkey)
 
 	// Trace log
 	logrus.Traceln("Generated P2P Identity Configuration.")
@@ -216,6 +229,7 @@ func setupHost(ctx context.Context) (host.Host, *dht.IpfsDHT) {
 	// Declare a KadDHT
 	var kaddht *dht.IpfsDHT
 	// Setup a routing configuration with the KadDHT
+	//定义节点路由函数,设置节点发现函数
 	routing := libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 		kaddht = setupKadDHT(ctx, h)
 		return kaddht, err
@@ -297,8 +311,8 @@ func bootstrapDHT(ctx context.Context, nodehost host.Host, kaddht *dht.IpfsDHT) 
 	// Declare a WaitGroup
 	var wg sync.WaitGroup
 	// Declare counters for the number of bootstrap peers
-	var connectedbootpeers int
-	var totalbootpeers int
+	var connectedbootpeers int32
+	var totalbootpeers int32
 
 	// Iterate over the default bootstrap peers provided by libp2p
 	for _, peeraddr := range dht.DefaultBootstrapPeers {
@@ -307,19 +321,15 @@ func bootstrapDHT(ctx context.Context, nodehost host.Host, kaddht *dht.IpfsDHT) 
 
 		// Incremenent waitgroup counter
 		wg.Add(1)
+		totalbootpeers++
 		// Start a goroutine to connect to each bootstrap peer
 		go func() {
 			// Defer the waitgroup decrement
 			defer wg.Done()
 			// Attempt to connect to the bootstrap peer
-			if err := nodehost.Connect(ctx, *peerinfo); err != nil {
-				// Increment the total bootstrap peer count
-				totalbootpeers++
-			} else {
+			if err := nodehost.Connect(ctx, *peerinfo); err == nil {
 				// Increment the connected bootstrap peer count
-				connectedbootpeers++
-				// Increment the total bootstrap peer count
-				totalbootpeers++
+				atomic.AddInt32(&connectedbootpeers, 1)
 			}
 		}()
 	}

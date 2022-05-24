@@ -71,7 +71,7 @@ func main() {
 	fmt.Println()
 
 	// Create a new P2PHost
-	p2phost := src.NewP2P()
+	p2phost := src.NewP2P() //创建P2P对象
 	logrus.Infoln("Completed P2P Setup")
 
 	// Connect to peers with the chosen discovery method
