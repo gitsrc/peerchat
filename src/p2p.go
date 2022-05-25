@@ -84,7 +84,7 @@ func NewP2P() *P2P {
 	// Debug log
 	logrus.Debugln("Created the Peer Discovery Service.")
 
-	// Create a PubSub handler with the routing discovery：根据节点路由发现机制创建一个PubSub机制
+	// Create a PubSub handler with the routing discovery：根据节点路由发现机制创建一个PubSub句柄
 	pubsubhandler := setupPubSub(ctx, nodehost, routingdiscovery)
 	// Debug log
 	logrus.Debugln("Created the PubSub Handler.")
