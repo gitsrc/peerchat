@@ -77,16 +77,20 @@ func main() {
 	// Connect to peers with the chosen discovery method
 	switch *discovery {
 	case "announce":
-		p2phost.AnnounceConnect()
+		p2phost.AnnounceConnect() //KadDHT p2p net create
 	case "advertise":
 		p2phost.AdvertiseConnect()
 	default:
 		p2phost.AdvertiseConnect()
 	}
+
 	logrus.Infoln("Connected to Service Peers")
 
 	// Join the chat room
-	chatapp, _ := src.JoinChatRoom(p2phost, *username, *chatroom)
+	chatapp, err := src.JoinChatRoom(p2phost, *username, *chatroom)
+	if err != nil {
+		logrus.Errorln(err)
+	}
 	logrus.Infof("Joined the '%s' chatroom as '%s'", chatapp.RoomName, chatapp.UserName)
 
 	// Wait for network setup to complete

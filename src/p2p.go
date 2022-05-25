@@ -2,7 +2,7 @@
  * @Author: gitsrc
  * @Date: 2022-05-24 14:01:14
  * @LastEditors: gitsrc
- * @LastEditTime: 2022-05-24 15:34:25
+ * @LastEditTime: 2022-05-25 13:33:06
  * @FilePath: /peerchat/src/p2p.go
  */
 package src
@@ -79,12 +79,12 @@ func NewP2P() *P2P {
 	// Debug log
 	logrus.Debugln("Bootstrapped the Kademlia DHT and Connected to Bootstrap Peers")
 
-	// Create a peer discovery service using the Kad DHT
+	// Create a peer discovery service using the Kad DHT : 创建一个节点路由发现方式
 	routingdiscovery := discovery.NewRoutingDiscovery(kaddht)
 	// Debug log
 	logrus.Debugln("Created the Peer Discovery Service.")
 
-	// Create a PubSub handler with the routing discovery
+	// Create a PubSub handler with the routing discovery：根据节点路由发现机制创建一个PubSub机制
 	pubsubhandler := setupPubSub(ctx, nodehost, routingdiscovery)
 	// Debug log
 	logrus.Debugln("Created the PubSub Handler.")
@@ -140,6 +140,7 @@ func (p2p *P2P) AnnounceConnect() {
 	// Generate the Service CID
 	cidvalue := generateCID(service)
 	// Trace log
+	logrus.Debug("cidvalue ", cidvalue.String())
 	logrus.Traceln("Generated the Service CID.")
 
 	// Announce that this host can provide the service CID
@@ -352,7 +353,13 @@ func handlePeerDiscovery(nodehost host.Host, peerchan <-chan peer.AddrInfo) {
 		}
 
 		// Connect to the peer
-		nodehost.Connect(context.Background(), peer)
+		err := nodehost.Connect(context.Background(), peer)
+
+		if err != nil {
+			logrus.Debugln("p2p peer connection failed: ", err)
+		}
+
+		logrus.Debugln("p2p peer connection success: ", peer.ID)
 	}
 }
 
